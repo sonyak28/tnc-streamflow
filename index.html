@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TNC California Streamflow — 30-Day Rescaling Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f4;
+    color: #1a1a1a;
+  }
+
+  header {
+    background: #2c5f2d;
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 18px; font-weight: bold; }
+  header p  { font-size: 12px; color: #a8d5a8; margin-top: 2px; }
+
+  .controls {
+    background: white;
+    border-bottom: 1px solid #ddd;
+    padding: 12px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .control-group label {
+    font-size: 11px;
+    font-weight: bold;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  select {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+    background: white;
+    min-width: 320px;
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: #2c5f2d; }
+
+  .toggle-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .toggle-btn {
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1.5px solid;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.15s;
+    background: white;
+  }
+  .toggle-btn.active   { opacity: 1; }
+  .toggle-btn.inactive { opacity: 0.35; }
+
+  .log-btn {
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1.5px solid #666;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    background: white;
+    color: #444;
+  }
+  .log-btn.on { background: #444; color: white; border-color: #444; }
+
+  .nse-bar {
+    background: #eef4ee;
+    border-bottom: 1px solid #c8dcc8;
+    padding: 8px 24px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .nse-item { display: flex; flex-direction: column; gap: 2px; }
+  .nse-label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .nse-val   { font-weight: bold; font-size: 14px; }
+  .nse-good  { color: #2c5f2d; }
+  .nse-ok    { color: #e07b00; }
+  .nse-bad   { color: #c0392b; }
+
+  .gauge-info {
+    font-size: 11px;
+    color: #888;
+    margin-left: auto;
+    align-self: center;
+  }
+
+  .chart-area {
+    padding: 16px 24px 0;
+  }
+
+  #main-chart  { width: 100%; height: 420px; }
+  #mini-chart  { width: 100%; height: 90px; margin-top: 4px; }
+
+  .chart-note {
+    font-size: 10px;
+    color: #999;
+    padding: 4px 24px 12px;
+    text-align: right;
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 420px;
+    color: #888;
+    font-size: 14px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    padding: 16px;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>TNC California Streamflow — 30-Day Centered Rescaling</h1>
+    <p>Daily LSTM flow rescaled using trusted monthly estimates · 51 eval COMIDs · 2001–2022</p>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Stream Gauge</label>
+    <select id="gauge-select">
+      <option value="">Loading gauges...</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label>Methods</label>
+    <div class="toggle-group" id="method-toggles">
+      <button class="toggle-btn active" data-key="observed"
+        style="color:#111;border-color:#111;">Observed (USGS)</button>
+      <button class="toggle-btn active" data-key="lstm_raw"
+        style="color:#4472c4;border-color:#4472c4;">Raw LSTM</button>
+      <button class="toggle-btn active" data-key="rescaled_30d"
+        style="color:#2c5f2d;border-color:#2c5f2d;">30d Centered Rescaled</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Y-axis</label>
+    <button class="log-btn" id="log-toggle">Log Scale: OFF</button>
+  </div>
+</div>
+
+<div class="nse-bar" id="nse-bar">
+  <div class="nse-item">
+    <span class="nse-label">Select a gauge to view NSE stats</span>
+  </div>
+</div>
+
+<div class="chart-area">
+  <div id="main-chart"><div class="loading">Loading...</div></div>
+  <div id="mini-chart"></div>
+</div>
+<div class="chart-note">
+  Drag on the lower preview chart to zoom · Double-click main chart to reset · Toggle methods and log scale above
+</div>
+
+<footer>
+  TNC California · Daily Flow Rescaling Analysis · Sonya Kalara 2026 ·
+  Data: <a href="https://rivers.codefornature.org" target="_blank">Natural Flows Database</a> &
+  <a href="https://waterdata.usgs.gov" target="_blank">USGS NWIS</a>
+</footer>
+
+<script>
+// ── config ─────────────────────────────────────────────────────────────────────
+const DATA_DIR = "data";   // relative path to JSON files
+
+const COLORS = {
+  observed:     { line: "#111111", name: "Observed (USGS)" },
+  lstm_raw:     { line: "#4472c4", name: "Raw LSTM" },
+  rescaled_30d: { line: "#2c5f2d", name: "30d Centered Rescaled" },
+};
+
+// ── state ──────────────────────────────────────────────────────────────────────
+let index      = {};
+let current    = null;   // current COMID data
+let logScale   = false;
+let visibility = { observed: true, lstm_raw: true, rescaled_30d: true };
+let zoomRange  = null;   // [start, end] date strings from mini chart
+
+// ── load index ─────────────────────────────────────────────────────────────────
+async function loadIndex() {
+  const res  = await fetch(`${DATA_DIR}/index.json`);
+  index      = await res.json();
+
+  const sel  = document.getElementById("gauge-select");
+  sel.innerHTML = "";
+
+  // sort by gauge name
+  const sorted = Object.values(index).sort((a, b) =>
+    a.gauge_name.localeCompare(b.gauge_name)
+  );
+
+  for (const g of sorted) {
+    const opt  = document.createElement("option");
+    opt.value  = String(g.comid);
+    const nse  = g.nse["30d_full"] != null ? ` [NSE ${g.nse["30d_full"].toFixed(2)}]` : "";
+    opt.text   = `${g.gauge_name}${nse}`;
+    sel.appendChild(opt);
+  }
+
+  // load first gauge
+  await loadGauge(sorted[0].comid);
+}
+
+// ── load one COMID ─────────────────────────────────────────────────────────────
+async function loadGauge(comid) {
+  document.getElementById("main-chart").innerHTML =
+    '<div class="loading">Loading data...</div>';
+
+  const res  = await fetch(`${DATA_DIR}/${comid}.json`);
+  current    = await res.json();
+  zoomRange  = null;
+  renderNSEBar();
+  renderCharts();
+}
+
+// ── NSE bar ────────────────────────────────────────────────────────────────────
+function nseClass(v) {
+  if (v == null || isNaN(v)) return "";
+  if (v >= 0.5)  return "nse-good";
+  if (v >= 0.0)  return "nse-ok";
+  return "nse-bad";
+}
+
+function nseStr(v) {
+  if (v == null || isNaN(v)) return "—";
+  return v.toFixed(3);
+}
+
+function renderNSEBar() {
+  const n   = current.nse;
+  const bar = document.getElementById("nse-bar");
+  bar.innerHTML = `
+    <div class="nse-item">
+      <span class="nse-label">Gauge</span>
+      <span class="nse-val" style="font-size:12px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${current.gauge_name}
+      </span>
+    </div>
+    <div class="nse-item">
+      <span class="nse-label">COMID</span>
+      <span class="nse-val" style="font-size:12px;">${current.comid} · Gauge ${current.gauge_id}</span>
+    </div>
+    <div class="nse-item">
+      <span class="nse-label">Full Period NSE</span>
+      <span class="nse-val ${nseClass(n['30d_full'])}">
+        Raw ${nseStr(n['raw_full'])} → 30d ${nseStr(n['30d_full'])}
+      </span>
+    </div>
+    <div class="nse-item">
+      <span class="nse-label">Pre-2015 NSE</span>
+      <span class="nse-val ${nseClass(n['30d_pre'])}">
+        Raw ${nseStr(n['raw_pre'])} → 30d ${nseStr(n['30d_pre'])}
+      </span>
+    </div>
+    <div class="nse-item">
+      <span class="nse-label">Post-2015 NSE</span>
+      <span class="nse-val ${nseClass(n['30d_post'])}">
+        Raw ${nseStr(n['raw_post'])} → 30d ${nseStr(n['30d_post'])}
+      </span>
+    </div>
+  `;
+}
+
+// ── chart rendering ────────────────────────────────────────────────────────────
+function buildTraces(data, keys) {
+  return keys.map(key => ({
+    x:       data.dates,
+    y:       data[key],
+    name:    COLORS[key].name,
+    type:    "scatter",
+    mode:    "lines",
+    visible: visibility[key] ? true : "legendonly",
+    line:    {
+      color: COLORS[key].line,
+      width: key === "observed" ? 1.5 : 1.2,
+    },
+    connectgaps: false,
+  }));
+}
+
+function yaxisConfig() {
+  return logScale
+    ? { type: "log", title: "Flow (cfs) — log scale", tickformat: ".2~g" }
+    : { type: "linear", title: "Flow (cfs)", rangemode: "tozero" };
+}
+
+function renderCharts() {
+  const keys   = ["observed", "lstm_raw", "rescaled_30d"];
+  const traces = buildTraces(current, keys);
+
+  // main chart range
+  const xRange = zoomRange
+    ? [zoomRange[0], zoomRange[1]]
+    : [current.dates[0], current.dates[current.dates.length - 1]];
+
+  // ── main chart ──────────────────────────────────────────────────────────────
+  const mainLayout = {
+    margin:     { t: 20, r: 20, b: 40, l: 70 },
+    xaxis:      {
+      range:    xRange,
+      showgrid: true,
+      gridcolor:"#eeeeee",
+      type:     "date",
+    },
+    yaxis:      { ...yaxisConfig(), showgrid: true, gridcolor: "#eeeeee" },
+    legend:     { orientation: "h", y: -0.12, x: 0 },
+    plot_bgcolor:  "#ffffff",
+    paper_bgcolor: "#ffffff",
+    hovermode:  "x unified",
+    shapes: [{
+      type: "line", x0: "2015-01-01", x1: "2015-01-01",
+      y0: 0, y1: 1, yref: "paper",
+      line: { color: "#e07b00", width: 1.2, dash: "dot" },
+    }],
+    annotations: [{
+      x: "2015-01-01", y: 0.97, yref: "paper",
+      text: "2015 (model training cutoff)",
+      showarrow: false, font: { size: 10, color: "#e07b00" },
+      xanchor: "left",
+    }],
+  };
+
+  Plotly.react("main-chart", traces, mainLayout, {
+    responsive: true,
+    displayModeBar: true,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
+  });
+
+  // ── mini overview chart ─────────────────────────────────────────────────────
+  const miniTraces = keys.map(key => ({
+    x:    current.dates,
+    y:    current[key],
+    type: "scatter",
+    mode: "lines",
+    line: { color: COLORS[key].line, width: 0.8 },
+    showlegend: false,
+    connectgaps: false,
+  }));
+
+  const miniLayout = {
+    margin:     { t: 4, r: 20, b: 24, l: 70 },
+    xaxis:      {
+      rangeslider: {},
+      type:    "date",
+      range:   [current.dates[0], current.dates[current.dates.length - 1]],
+    },
+    yaxis: logScale
+      ? { type: "log", showticklabels: false, fixedrange: true }
+      : { showticklabels: false, fixedrange: true, rangemode: "tozero" },
+    plot_bgcolor:  "#f8fbf8",
+    paper_bgcolor: "#f4f6f4",
+    height: 90,
+  };
+
+  Plotly.react("mini-chart", miniTraces, miniLayout, { responsive: true, displayModeBar: false });
+
+  // sync mini → main on relayout
+  document.getElementById("mini-chart").on("plotly_relayout", (e) => {
+    if (e["xaxis.range[0]"] && e["xaxis.range[1]"]) {
+      zoomRange = [e["xaxis.range[0]"], e["xaxis.range[1]"]];
+      Plotly.relayout("main-chart", {
+        "xaxis.range[0]": zoomRange[0],
+        "xaxis.range[1]": zoomRange[1],
+      });
+    }
+    if (e["xaxis.autorange"]) {
+      zoomRange = null;
+      Plotly.relayout("main-chart", { "xaxis.autorange": true });
+    }
+  });
+
+  // sync main → mini on relayout
+  document.getElementById("main-chart").on("plotly_relayout", (e) => {
+    if (e["xaxis.range[0]"] && e["xaxis.range[1]"]) {
+      zoomRange = [e["xaxis.range[0]"], e["xaxis.range[1]"]];
+    }
+  });
+}
+
+// ── event listeners ────────────────────────────────────────────────────────────
+document.getElementById("gauge-select").addEventListener("change", async (e) => {
+  if (e.target.value) await loadGauge(parseInt(e.target.value));
+});
+
+document.getElementById("log-toggle").addEventListener("click", () => {
+  logScale = !logScale;
+  const btn = document.getElementById("log-toggle");
+  btn.textContent = `Log Scale: ${logScale ? "ON" : "OFF"}`;
+  btn.className   = logScale ? "log-btn on" : "log-btn";
+  if (current) renderCharts();
+});
+
+document.getElementById("method-toggles").addEventListener("click", (e) => {
+  const btn = e.target.closest(".toggle-btn");
+  if (!btn) return;
+  const key = btn.dataset.key;
+  visibility[key] = !visibility[key];
+  btn.className = `toggle-btn ${visibility[key] ? "active" : "inactive"}`;
+  if (current) {
+    Plotly.restyle("main-chart",
+      { visible: visibility[key] ? true : "legendonly" },
+      [["observed","lstm_raw","rescaled_30d"].indexOf(key)]
+    );
+    Plotly.restyle("mini-chart",
+      { visible: visibility[key] ? true : "legendonly" },
+      [["observed","lstm_raw","rescaled_30d"].indexOf(key)]
+    );
+  }
+});
+
+// ── init ───────────────────────────────────────────────────────────────────────
+loadIndex().catch(err => {
+  document.getElementById("main-chart").innerHTML =
+    `<div class="loading" style="color:#c0392b;">
+      Error loading data: ${err.message}<br>
+      Make sure the <code>data/</code> folder is in the same directory as this HTML file.
+    </div>`;
+});
+</script>
+</body>
+</html>
