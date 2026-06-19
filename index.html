@@ -248,11 +248,19 @@ async function loadGauge(comid) {
   document.getElementById("main-chart").innerHTML =
     '<div class="loading">Loading data...</div>';
 
-  const res  = await fetch(`${DATA_DIR}/${comid}.json`);
-  current    = await res.json();
-  zoomRange  = null;
-  renderNSEBar();
-  renderCharts();
+  try {
+    const res = await fetch(`${DATA_DIR}/${comid}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${comid}.json`);
+    current = await res.json();
+    console.log("Loaded data for", comid, "keys:", Object.keys(current));
+    zoomRange = null;
+    renderNSEBar();
+    renderCharts();
+  } catch (err) {
+    console.error("loadGauge failed:", err);
+    document.getElementById("main-chart").innerHTML =
+      `<div class="loading" style="color:#c0392b;">Error: ${err.message}</div>`;
+  }
 }
 
 // ── NSE bar ────────────────────────────────────────────────────────────────────
