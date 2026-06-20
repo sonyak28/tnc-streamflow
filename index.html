@@ -102,9 +102,9 @@
   .nse-item { display: flex; flex-direction: column; gap: 2px; }
   .nse-label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
   .nse-val   { font-weight: bold; font-size: 14px; }
-  .nse-good  { color: #2c5f2d; }
-  .nse-ok    { color: #e07b00; }
-  .nse-bad   { color: #c0392b; }
+  .nse-good  { color: #2C5F2D; }
+  .nse-ok    { color: #666666; }
+  .nse-bad   { color: #999999; font-style: italic; }
 
   .gauge-info {
     font-size: 11px;
@@ -167,15 +167,15 @@
     <label>Methods</label>
     <div class="toggle-group" id="method-toggles">
       <button class="toggle-btn active" data-key="observed"
-        style="color:#111;border-color:#111;">Observed (USGS)</button>
+        style="color:#1a1a1a;border-color:#1a1a1a;">Observed (USGS)</button>
       <button class="toggle-btn active" data-key="lstm_raw"
-        style="color:#E69F00;border-color:#E69F00;">Raw LSTM</button>
+        style="color:#999999;border-color:#999999;">Raw LSTM</button>
       <button class="toggle-btn active" data-key="rescaled_30d"
-        style="color:#CC79A7;border-color:#CC79A7;">30d Centered</button>
+        style="color:#4472C4;border-color:#4472C4;">30d Centered</button>
       <button class="toggle-btn active" data-key="rescaled_trailing"
-        style="color:#56B4E9;border-color:#56B4E9;">30d Trailing</button>
+        style="color:#E07B39;border-color:#E07B39;">30d Trailing</button>
       <button class="toggle-btn active" data-key="rescaled_ewm"
-        style="color:#009E73;border-color:#009E73;">EWM hl=15</button>
+        style="color:#2C5F2D;border-color:#2C5F2D;">EWM hl=15</button>
     </div>
   </div>
 
@@ -210,11 +210,11 @@
 const DATA_DIR = "data";   // relative path to JSON files
 
 const COLORS = {
-  observed:          { line: "#000000", name: "Observed (USGS)" },
-  lstm_raw:          { line: "#E69F00", name: "Raw LSTM" },
-  rescaled_30d:      { line: "#CC79A7", name: "30d Centered" },
-  rescaled_trailing: { line: "#56B4E9", name: "30d Trailing" },
-  rescaled_ewm:      { line: "#009E73", name: "EWM hl=15" },
+  observed:          { line: "#1a1a1a", name: "Observed (USGS)" },
+  lstm_raw:          { line: "#999999", name: "Raw LSTM" },
+  rescaled_30d:      { line: "#4472C4", name: "30d Centered" },
+  rescaled_trailing: { line: "#E07B39", name: "30d Trailing" },
+  rescaled_ewm:      { line: "#2C5F2D", name: "EWM hl=15" },
 };
 
 // ── state ──────────────────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ async function loadGauge(comid) {
 
 // ── NSE bar ────────────────────────────────────────────────────────────────────
 function nseClass(v) {
-  if (v == null || isNaN(v)) return "";
+  if (v == null || isNaN(v)) return "nse-bad";
   if (v >= 0.5)  return "nse-good";
   if (v >= 0.0)  return "nse-ok";
   return "nse-bad";
@@ -332,15 +332,15 @@ function renderNSEBar() {
           <td class="${nseClass(n.raw_full)}" style="font-weight:bold;">${nseStr(n.raw_full)}</td>
         </tr>
         <tr>
-          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td style="color:#4472C4;padding-right:10px;">30d Centered</td>
           <td class="${nseClass(n['30d_full'])}" style="font-weight:bold;">${nseStr(n['30d_full'])}</td>
         </tr>
         <tr>
-          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td style="color:#E07B39;padding-right:10px;">30d Trailing</td>
           <td class="${nseClass(n.trailing_full)}" style="font-weight:bold;">${nseStr(n.trailing_full)}</td>
         </tr>
         <tr>
-          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td style="color:#2C5F2D;padding-right:10px;">EWM hl=15</td>
           <td class="${nseClass(n.ewm_full)}" style="font-weight:bold;">${nseStr(n.ewm_full)}</td>
         </tr>
       </table>
@@ -354,15 +354,15 @@ function renderNSEBar() {
           <td class="${nseClass(n.raw_pre)}" style="font-weight:bold;">${nseStr(n.raw_pre)}</td>
         </tr>
         <tr>
-          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td style="color:#4472C4;padding-right:10px;">30d Centered</td>
           <td class="${nseClass(n['30d_pre'])}" style="font-weight:bold;">${nseStr(n['30d_pre'])}</td>
         </tr>
         <tr>
-          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td style="color:#E07B39;padding-right:10px;">30d Trailing</td>
           <td class="${nseClass(n.trailing_pre)}" style="font-weight:bold;">${nseStr(n.trailing_pre)}</td>
         </tr>
         <tr>
-          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td style="color:#2C5F2D;padding-right:10px;">EWM hl=15</td>
           <td class="${nseClass(n.ewm_pre)}" style="font-weight:bold;">${nseStr(n.ewm_pre)}</td>
         </tr>
       </table>
@@ -376,15 +376,15 @@ function renderNSEBar() {
           <td class="${nseClass(n.raw_post)}" style="font-weight:bold;">${nseStr(n.raw_post)}</td>
         </tr>
         <tr>
-          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td style="color:#4472C4;padding-right:10px;">30d Centered</td>
           <td class="${nseClass(n['30d_post'])}" style="font-weight:bold;">${nseStr(n['30d_post'])}</td>
         </tr>
         <tr>
-          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td style="color:#E07B39;padding-right:10px;">30d Trailing</td>
           <td class="${nseClass(n.trailing_post)}" style="font-weight:bold;">${nseStr(n.trailing_post)}</td>
         </tr>
         <tr>
-          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td style="color:#2C5F2D;padding-right:10px;">EWM hl=15</td>
           <td class="${nseClass(n.ewm_post)}" style="font-weight:bold;">${nseStr(n.ewm_post)}</td>
         </tr>
       </table>
