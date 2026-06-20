@@ -243,10 +243,16 @@ async function loadIndex() {
   await loadGauge(sorted[0].comid);
 }
 
-// ── load one COMID ─────────────────────────────────────────────────────────────
 async function loadGauge(comid) {
-  document.getElementById("main-chart").innerHTML =
-    '<div class="loading">Loading data...</div>';
+  // clear previous chart properly
+  const mainDiv = document.getElementById("main-chart");
+  const miniDiv = document.getElementById("mini-chart");
+  
+  // purge existing Plotly instances before setting innerHTML
+  if (mainDiv._fullLayout) Plotly.purge("main-chart");
+  if (miniDiv._fullLayout)  Plotly.purge("mini-chart");
+  
+  mainDiv.innerHTML = '<div class="loading">Loading data...</div>';
 
   try {
     const res = await fetch(`${DATA_DIR}/${comid}.json`);
@@ -254,11 +260,16 @@ async function loadGauge(comid) {
     current = await res.json();
     console.log("Loaded data for", comid, "keys:", Object.keys(current));
     zoomRange = null;
+    
+    // clear the loading message before rendering
+    mainDiv.innerHTML = "";
+    miniDiv.innerHTML = "";
+    
     renderNSEBar();
     renderCharts();
   } catch (err) {
     console.error("loadGauge failed:", err);
-    document.getElementById("main-chart").innerHTML =
+    mainDiv.innerHTML =
       `<div class="loading" style="color:#c0392b;">Error: ${err.message}</div>`;
   }
 }
