@@ -150,8 +150,8 @@
 
 <header>
   <div>
-    <h1>TNC California Streamflow — 30-Day Centered Rescaling</h1>
-    <p>Daily LSTM flow rescaled using trusted monthly estimates · 51 eval COMIDs · 2001–2022</p>
+    <h1>TNC California Streamflow: Daily Flow Rescaling</h1>
+    <p>Comparing LSTM rescaling methods | 51 eval COMIDs | 2001–2022</p>
   </div>
 </header>
 
@@ -240,8 +240,9 @@ async function loadIndex() {
   for (const g of sorted) {
     const opt  = document.createElement("option");
     opt.value  = String(g.comid);
-    const nse  = g.nse["30d_full"] != null ? ` [NSE ${g.nse["30d_full"].toFixed(2)}]` : "";
-    opt.text   = `${g.gauge_name}${nse}`;
+    const nse   = g.nse["30d_full"] != null ? ` [NSE ${g.nse["30d_full"].toFixed(2)}]` : "";
+    const best  = g.best_method ? ` ★${g.best_method}` : "";
+    opt.text    = `${g.gauge_name}${nse}${best}`;
     sel.appendChild(opt);
   }
 
@@ -296,34 +297,97 @@ function nseStr(v) {
 function renderNSEBar() {
   const n   = current.nse;
   const bar = document.getElementById("nse-bar");
+
+  const methodLabel = {
+    raw:      "Raw LSTM",
+    "30d":    "30d Centered",
+    trailing: "30d Trailing",
+    ewm:      "EWM hl=15",
+  };
+
+  const bestBadge = n.best_method
+    ? `<span style="background:#2c5f2d;color:white;font-size:9px;
+        padding:2px 6px;border-radius:3px;margin-left:6px;font-weight:bold;">
+        ★ best: ${methodLabel[n.best_method] || n.best_method}
+       </span>`
+    : "";
+
   bar.innerHTML = `
-    <div class="nse-item">
+    <div class="nse-item" style="min-width:200px">
       <span class="nse-label">Gauge</span>
-      <span class="nse-val" style="font-size:12px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        ${current.gauge_name}
+      <span class="nse-val" style="font-size:12px;">
+        ${current.gauge_name}${bestBadge}
       </span>
     </div>
     <div class="nse-item">
-      <span class="nse-label">COMID</span>
-      <span class="nse-val" style="font-size:12px;">${current.comid} · Gauge ${current.gauge_id}</span>
+      <span class="nse-label">COMID · Gauge</span>
+      <span class="nse-val" style="font-size:12px;">${current.comid} · ${current.gauge_id}</span>
     </div>
+
     <div class="nse-item">
-      <span class="nse-label">Full Period NSE</span>
-      <span class="nse-val ${nseClass(n['30d_full'])}">
-        Raw ${nseStr(n['raw_full'])} → 30d ${nseStr(n['30d_full'])}
-      </span>
+      <span class="nse-label" style="margin-bottom:4px;">Full Period NSE</span>
+      <table style="font-size:11px;border-collapse:collapse;line-height:1.6;">
+        <tr>
+          <td style="color:#666;padding-right:10px;">Raw LSTM</td>
+          <td class="${nseClass(n.raw_full)}" style="font-weight:bold;">${nseStr(n.raw_full)}</td>
+        </tr>
+        <tr>
+          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td class="${nseClass(n['30d_full'])}" style="font-weight:bold;">${nseStr(n['30d_full'])}</td>
+        </tr>
+        <tr>
+          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td class="${nseClass(n.trailing_full)}" style="font-weight:bold;">${nseStr(n.trailing_full)}</td>
+        </tr>
+        <tr>
+          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td class="${nseClass(n.ewm_full)}" style="font-weight:bold;">${nseStr(n.ewm_full)}</td>
+        </tr>
+      </table>
     </div>
+
     <div class="nse-item">
-      <span class="nse-label">Pre-2015 NSE</span>
-      <span class="nse-val ${nseClass(n['30d_pre'])}">
-        Raw ${nseStr(n['raw_pre'])} → 30d ${nseStr(n['30d_pre'])}
-      </span>
+      <span class="nse-label" style="margin-bottom:4px;">Pre-2015 NSE</span>
+      <table style="font-size:11px;border-collapse:collapse;line-height:1.6;">
+        <tr>
+          <td style="color:#666;padding-right:10px;">Raw LSTM</td>
+          <td class="${nseClass(n.raw_pre)}" style="font-weight:bold;">${nseStr(n.raw_pre)}</td>
+        </tr>
+        <tr>
+          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td class="${nseClass(n['30d_pre'])}" style="font-weight:bold;">${nseStr(n['30d_pre'])}</td>
+        </tr>
+        <tr>
+          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td class="${nseClass(n.trailing_pre)}" style="font-weight:bold;">${nseStr(n.trailing_pre)}</td>
+        </tr>
+        <tr>
+          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td class="${nseClass(n.ewm_pre)}" style="font-weight:bold;">${nseStr(n.ewm_pre)}</td>
+        </tr>
+      </table>
     </div>
+
     <div class="nse-item">
-      <span class="nse-label">Post-2015 NSE</span>
-      <span class="nse-val ${nseClass(n['30d_post'])}">
-        Raw ${nseStr(n['raw_post'])} → 30d ${nseStr(n['30d_post'])}
-      </span>
+      <span class="nse-label" style="margin-bottom:4px;">Post-2015 NSE</span>
+      <table style="font-size:11px;border-collapse:collapse;line-height:1.6;">
+        <tr>
+          <td style="color:#666;padding-right:10px;">Raw LSTM</td>
+          <td class="${nseClass(n.raw_post)}" style="font-weight:bold;">${nseStr(n.raw_post)}</td>
+        </tr>
+        <tr>
+          <td style="color:#CC79A7;padding-right:10px;">30d Centered</td>
+          <td class="${nseClass(n['30d_post'])}" style="font-weight:bold;">${nseStr(n['30d_post'])}</td>
+        </tr>
+        <tr>
+          <td style="color:#56B4E9;padding-right:10px;">30d Trailing</td>
+          <td class="${nseClass(n.trailing_post)}" style="font-weight:bold;">${nseStr(n.trailing_post)}</td>
+        </tr>
+        <tr>
+          <td style="color:#009E73;padding-right:10px;">EWM hl=15</td>
+          <td class="${nseClass(n.ewm_post)}" style="font-weight:bold;">${nseStr(n.ewm_post)}</td>
+        </tr>
+      </table>
     </div>
   `;
 }
