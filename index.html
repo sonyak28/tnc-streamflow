@@ -171,7 +171,11 @@
       <button class="toggle-btn active" data-key="lstm_raw"
         style="color:#E69F00;border-color:#E69F00;">Raw LSTM</button>
       <button class="toggle-btn active" data-key="rescaled_30d"
-        style="color:#CC79A7;border-color:#CC79A7;">30d Centered Rescaled</button>
+        style="color:#CC79A7;border-color:#CC79A7;">30d Centered</button>
+      <button class="toggle-btn active" data-key="rescaled_trailing"
+        style="color:#56B4E9;border-color:#56B4E9;">30d Trailing</button>
+      <button class="toggle-btn active" data-key="rescaled_ewm"
+        style="color:#009E73;border-color:#009E73;">EWM hl=15</button>
     </div>
   </div>
 
@@ -206,16 +210,18 @@
 const DATA_DIR = "data";   // relative path to JSON files
 
 const COLORS = {
-  observed:     { line: "#000000", name: "Observed (USGS)" },
-  lstm_raw:     { line: "#E69F00", name: "Raw LSTM" },       // amber
-  rescaled_30d: { line: "#CC79A7", name: "30d Centered Rescaled" }, // mauve
+  observed:          { line: "#000000", name: "Observed (USGS)" },
+  lstm_raw:          { line: "#E69F00", name: "Raw LSTM" },
+  rescaled_30d:      { line: "#CC79A7", name: "30d Centered" },
+  rescaled_trailing: { line: "#56B4E9", name: "30d Trailing" },
+  rescaled_ewm:      { line: "#009E73", name: "EWM hl=15" },
 };
 
 // ── state ──────────────────────────────────────────────────────────────────────
 let index      = {};
 let current    = null;   // current COMID data
 let logScale   = false;
-let visibility = { observed: true, lstm_raw: true, rescaled_30d: true };
+let visibility = { observed: true, lstm_raw: true, rescaled_30d: true, rescaled_trailing: true, rescaled_ewm: true };
 let zoomRange  = null;   // [start, end] date strings from mini chart
 
 // ── load index ─────────────────────────────────────────────────────────────────
@@ -346,7 +352,7 @@ function yaxisConfig() {
 }
 
 function renderCharts() {
-  const keys   = ["observed", "lstm_raw", "rescaled_30d"];
+  const keys   = ["observed", "lstm_raw", "rescaled_30d", "rescaled_trailing", "rescaled_ewm"];
   const traces = buildTraces(current, keys);
 
   // main chart range
@@ -460,11 +466,11 @@ document.getElementById("method-toggles").addEventListener("click", (e) => {
   if (current) {
     Plotly.restyle("main-chart",
       { visible: visibility[key] ? true : "legendonly" },
-      [["observed","lstm_raw","rescaled_30d"].indexOf(key)]
+      [["observed","lstm_raw","rescaled_30d", "rescaled_trailing", "rescaled_ewm"].indexOf(key)]
     );
     Plotly.restyle("mini-chart",
       { visible: visibility[key] ? true : "legendonly" },
-      [["observed","lstm_raw","rescaled_30d"].indexOf(key)]
+      [["observed","lstm_raw","rescaled_30d", "rescaled_trailing", "rescaled_ewm"].indexOf(key)]
     );
   }
 });
